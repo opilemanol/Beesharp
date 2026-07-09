@@ -1,0 +1,6 @@
+{
+  "name": "BeeSharp",
+  "description": "An offline-first Spelling Bee Android game featuring beautiful bumblebee designs and a reactive gameplay loop.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
