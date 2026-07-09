@@ -22,7 +22,7 @@ testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 signingConfigs {
     create("release") {
         // Look for the environment variable, default to local root directory if empty
-        val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
+        val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-keybeesharp"
         storeFile = file(keystorePath)
         
         // This handles both GitHub environment variables and local properties gracefully
