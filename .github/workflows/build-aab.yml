@@ -38,11 +38,10 @@ jobs:
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$KEYSTORE_PATH"
 
       - name: Build Signed Release AAB
-        run: gradle bundleRelease --stacktrace
+        run: ./gradlew bundleRelease -Djava.security.properties=/dev/null --stacktrace
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
           name: app-release-aab
           path: app/build/outputs/bundle/release/app-release.aab
-
