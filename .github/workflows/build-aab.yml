@@ -49,7 +49,7 @@ jobs:
           fi
 
       - name: Build Signed Release AAB
-        run: ./gradlew bundleRelease -Djava.security.properties=/dev/null --stacktrace
+        run: gradle bundleRelease -Djava.security.properties=/dev/null --stacktrace
 
       - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
