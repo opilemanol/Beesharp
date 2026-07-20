@@ -33,20 +33,10 @@ jobs:
         with:
           validate-wrappers: false
 
-      # Automatically generates a brand-new, unique keystore file in the cloud if it doesn't exist!
-      - name: Generate Fresh Keystore File
+      # Replaces keytool generation with decoding your saved local keystore
+      - name: Decode Saved Keystore
         run: |
-          if [ ! -f "$KEYSTORE_PATH" ]; then
-            keytool -genkeypair -v \
-              -keystore "$KEYSTORE_PATH" \
-              -alias upload \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass "$STORE_PASSWORD" \
-              -keypass "$KEY_PASSWORD" \
-              -dname "CN=Teramayo, O=Beesharp, C=NG"
-          fi
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > "$KEYSTORE_PATH"
 
       - name: Build Signed Release AAB
         run: gradle bundleRelease -Djava.security.properties=/dev/null --stacktrace
@@ -56,10 +46,3 @@ jobs:
         with:
           name: app-release-aab
           path: app/build/outputs/bundle/release/app-release.aab
-
-      # Safe backup so you can download your brand-new unique keystore directly from GitHub!
-      - name: Upload Generated Keystore Backup
-        uses: actions/upload-artifact@v4
-        with:
-          name: save-this-keystore
-          path: my-upload-keybeesharp.jks
