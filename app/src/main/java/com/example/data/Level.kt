@@ -3480,7 +3480,7 @@ Triple("GROUNDMASS", 3, "The fine-grained matrix surrounding large embedded crys
 Triple("POIKILITIC", 3, "A rock texture where crystals enclose smaller grains"),
 Triple("VUG", 3, "A small cavity inside rock veins lined crystals"),
 Triple("AMYGDALE", 3, "A gas vesicle cavity filled with secondary minerals"),
-Triple("PSEUDOMORPH", 3, "A mineral replacing another while retaining original shapes")
+Triple("PSEUDOMORPH", 3, "A mineral replacing another while retaining original shapes"),
 
 
 
