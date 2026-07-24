@@ -16,8 +16,8 @@ class AdHelper(private val context: Context) {
     private var interstitialAd: InterstitialAd? = null
 
     // Test Ad Unit IDs from Google documentation
-    private val REWARDED_TEST_ID = "ca-app-pub-3940256099942544/5224354917"
-    private val INTERSTITIAL_TEST_ID = "ca-app-pub-3940256099942544/1033173712"
+    private val REWARDED_TEST_ID = "ca-app-pub-5927630860510493/3714422834"
+    private val INTERSTITIAL_TEST_ID = "ca-app-pub-5927630860510493/2360832776"
 
     private var isInitializing = false
 
