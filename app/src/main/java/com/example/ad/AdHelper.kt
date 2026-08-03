@@ -15,9 +15,11 @@ class AdHelper(private val context: Context) {
     private var rewardedAd: RewardedAd? = null
     private var interstitialAd: InterstitialAd? = null
 
-    // Test Ad Unit IDs from Google documentation
+    // Ad Unit IDs
     private val REWARDED_TEST_ID = "ca-app-pub-5927630860510493/3714422834"
     private val INTERSTITIAL_TEST_ID = "ca-app-pub-5927630860510493/2360832776"
+    val BANNER_AD_ID = "ca-app-pub-5927630860510493/3120675248"
+    val BANNER_TEST_ID = BANNER_AD_ID
 
     private var isInitializing = false
 
@@ -28,40 +30,58 @@ class AdHelper(private val context: Context) {
     private fun initializeAdMob() {
         if (isInitializing) return
         isInitializing = true
-        MobileAds.initialize(context) {
-            loadRewardedAd()
-            loadInterstitialAd()
+        try {
+            MobileAds.initialize(context) {
+                try {
+                    loadRewardedAd()
+                    loadInterstitialAd()
+                } catch (e: Throwable) {
+                    Log.e("AdHelper", "Error loading ads after init: ${e.message}")
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e("AdHelper", "Error initializing MobileAds: ${e.message}")
         }
     }
 
     fun loadRewardedAd() {
-        val adRequest = AdRequest.Builder().build()
-        RewardedAd.load(context, REWARDED_TEST_ID, adRequest, object : RewardedAdLoadCallback() {
-            override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                Log.e("AdHelper", "Rewarded Ad failed to load: ${loadAdError.message}")
-                rewardedAd = null
-            }
+        try {
+            val adRequest = AdRequest.Builder().build()
+            RewardedAd.load(context, REWARDED_TEST_ID, adRequest, object : RewardedAdLoadCallback() {
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    Log.e("AdHelper", "Rewarded Ad failed to load: ${loadAdError.message}")
+                    rewardedAd = null
+                }
 
-            override fun onAdLoaded(ad: RewardedAd) {
-                Log.d("AdHelper", "Rewarded Ad loaded successfully")
-                rewardedAd = ad
-            }
-        })
+                override fun onAdLoaded(ad: RewardedAd) {
+                    Log.d("AdHelper", "Rewarded Ad loaded successfully")
+                    rewardedAd = ad
+                }
+            })
+        } catch (e: Throwable) {
+            Log.e("AdHelper", "Exception during loadRewardedAd: ${e.message}")
+            rewardedAd = null
+        }
     }
 
     fun loadInterstitialAd() {
-        val adRequest = AdRequest.Builder().build()
-        InterstitialAd.load(context, INTERSTITIAL_TEST_ID, adRequest, object : InterstitialAdLoadCallback() {
-            override fun onAdFailedToLoad(loadAdError: LoadAdError) {
-                Log.e("AdHelper", "Interstitial Ad failed to load: ${loadAdError.message}")
-                interstitialAd = null
-            }
+        try {
+            val adRequest = AdRequest.Builder().build()
+            InterstitialAd.load(context, INTERSTITIAL_TEST_ID, adRequest, object : InterstitialAdLoadCallback() {
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    Log.e("AdHelper", "Interstitial Ad failed to load: ${loadAdError.message}")
+                    interstitialAd = null
+                }
 
-            override fun onAdLoaded(ad: InterstitialAd) {
-                Log.d("AdHelper", "Interstitial Ad loaded successfully")
-                interstitialAd = ad
-            }
-        })
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    Log.d("AdHelper", "Interstitial Ad loaded successfully")
+                    interstitialAd = ad
+                }
+            })
+        } catch (e: Throwable) {
+            Log.e("AdHelper", "Exception during loadInterstitialAd: ${e.message}")
+            interstitialAd = null
+        }
     }
 
     fun isRewardedAdLoaded(): Boolean {

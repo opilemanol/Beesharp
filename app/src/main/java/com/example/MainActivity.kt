@@ -2,6 +2,7 @@ package com.example
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -55,6 +56,10 @@ import androidx.core.content.ContextCompat
 import com.example.notification.NotificationHelper
 import com.example.ui.GameViewModel
 import com.example.ui.theme.MyApplicationTheme
+import androidx.compose.ui.viewinterop.AndroidView
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
+import com.google.android.gms.ads.AdView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -204,6 +209,9 @@ fun SpellingBeeGameScreen(
                     onSubmit = { viewModel.onSubmitPress() }
                 )
             }
+
+            // 8. Live Banner Ad View
+            BannerAdView(adUnitId = viewModel.adHelper.BANNER_AD_ID)
         }
 
         // Action Overlays
@@ -371,16 +379,31 @@ fun YellowMainBanner() {
                 border = BorderStroke(2.dp, Color(0xFFA1DEDC)),
                 shape = RoundedCornerShape(0.dp)
             )
-            .padding(vertical = 10.dp),
+            .padding(vertical = 8.dp, horizontal = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = "BEE-RILLIANT... SPARKLE!",
-            color = Color(0xFFFF6F00), // Solid orange
-            fontWeight = FontWeight.Black,
-            fontSize = 18.sp,
-            letterSpacing = 2.sp
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.img_app_icon),
+                contentDescription = "App Icon",
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .border(1.5.dp, Color(0xFFFF6F00), CircleShape),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "BEE-RILLIANT... SPARKLE!",
+                color = Color(0xFFFF6F00), // Solid orange
+                fontWeight = FontWeight.Black,
+                fontSize = 18.sp,
+                letterSpacing = 1.sp
+            )
+        }
     }
 }
 
@@ -1459,5 +1482,48 @@ fun FailureOverlay(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun BannerAdView(
+    adUnitId: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 50.dp)
+            .background(Color.White.copy(alpha = 0.85f))
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxWidth(),
+            factory = { context ->
+                try {
+                    AdView(context).apply {
+                        setAdSize(AdSize.BANNER)
+                        setAdUnitId(adUnitId)
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                        )
+                        adListener = object : com.google.android.gms.ads.AdListener() {
+                            override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                                Log.e("BannerAdView", "Banner ad failed to load (${error.code}): ${error.message}")
+                            }
+                            override fun onAdLoaded() {
+                                Log.d("BannerAdView", "Banner ad loaded successfully")
+                            }
+                        }
+                        loadAd(AdRequest.Builder().build())
+                    }
+                } catch (e: Exception) {
+                    Log.e("BannerAdView", "Error creating AdView: ${e.message}", e)
+                    android.view.View(context)
+                }
+            }
+        )
     }
 }

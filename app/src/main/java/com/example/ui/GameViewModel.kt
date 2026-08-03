@@ -39,7 +39,7 @@ data class GameUiState(
     val freeHintsLeft: Int = 3,
     val inputLetters: List<Char?> = emptyList(),
     val cursorIndex: Int = 0,
-    val timerSecondsRemaining: Int = 30,
+    val timerSecondsRemaining: Int = 299,
     val isTimerActive: Boolean = false,
     val gameStatus: GameStatus = GameStatus.PLAYING,
     val isTtsReady: Boolean = false,
@@ -118,7 +118,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun startTimerWith2SecondDelay() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
-            _uiState.update { it.copy(isTimerActive = false, timerSecondsRemaining = 30) }
+            _uiState.update { it.copy(isTimerActive = false, timerSecondsRemaining = 299) }
             
             // Wait 2 seconds before the game timer begins counting down
             delay(2000)
@@ -463,19 +463,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun updateAdLimitState() {
-        val now = System.currentTimeMillis()
-        val timestamps = getAdWatchTimestamps()
-        val twelveHoursAgo = now - (12 * 60 * 60 * 1000L)
-        val activeTimestamps = timestamps.filter { it >= twelveHoursAgo }
-        
-        if (activeTimestamps.size >= 10) {
-            val oldest = activeTimestamps.minOrNull() ?: now
-            val msRemaining = (oldest + (12 * 60 * 60 * 1000L)) - now
-            val secRemaining = maxOf(0L, (msRemaining + 999) / 1000)
-            _uiState.update { it.copy(adLimitResetSeconds = secRemaining) }
-        } else {
-            _uiState.update { it.copy(adLimitResetSeconds = 0L) }
-        }
+        // Frequency limits managed directly via AdMob console
+        _uiState.update { it.copy(adLimitResetSeconds = 0L) }
     }
 
     fun selectTab(tab: ActiveTab) {
@@ -490,7 +479,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 currentLevelId = levelId,
                 inputLetters = List(wordLen) { null },
                 cursorIndex = 0,
-                timerSecondsRemaining = 30,
+                timerSecondsRemaining = 299,
                 isTimerActive = false,
                 gameStatus = GameStatus.PLAYING,
                 messageText = "",
