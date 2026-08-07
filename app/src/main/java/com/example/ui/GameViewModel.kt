@@ -31,6 +31,12 @@ enum class ActiveTab {
     STATS
 }
 
+enum class TtsSpeed(val rate: Float, val displayName: String, val badge: String) {
+    NORMAL(1.0f, "Normal", "⚡ 1.0x"),
+    SLOW(0.7f, "Slow", "🐢 0.7x"),
+    VERY_SLOW(0.5f, "Slowest", "🐌 0.5x")
+}
+
 data class GameUiState(
     val currentLevelId: Int = 1,
     val score: Int = 0,
@@ -43,6 +49,7 @@ data class GameUiState(
     val isTimerActive: Boolean = false,
     val gameStatus: GameStatus = GameStatus.PLAYING,
     val isTtsReady: Boolean = false,
+    val ttsSpeed: TtsSpeed = TtsSpeed.NORMAL,
     val currentTab: ActiveTab = ActiveTab.HOME,
     val messageText: String = "",
     val totalWordsSpelledCorrectly: Int = 0,
@@ -107,9 +114,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         return LevelData.getLevel(levelId).wordToSpell
     }
 
-    fun playCurrentWordSpeech() {
+    fun setTtsSpeed(speed: TtsSpeed) {
+        _uiState.update { it.copy(ttsSpeed = speed) }
+    }
+
+    fun playCurrentWordSpeech(overrideSpeed: TtsSpeed? = null) {
+        val speedToUse = overrideSpeed ?: _uiState.value.ttsSpeed
+        if (overrideSpeed != null) {
+            _uiState.update { it.copy(ttsSpeed = overrideSpeed) }
+        }
         val level = LevelData.getLevel(_uiState.value.currentLevelId)
-        ttsHelper.speak(level.wordToSpell)
+        ttsHelper.speak(level.wordToSpell, speedToUse.rate)
         
         // Start/Restart timer with a precise 2 second delay as requested by specs
         startTimerWith2SecondDelay()

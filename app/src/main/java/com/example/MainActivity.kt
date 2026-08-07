@@ -48,6 +48,7 @@ import com.example.data.LevelData
 import com.example.ui.ActiveTab
 import com.example.ui.GameStatus
 import com.example.ui.GameUiState
+import com.example.ui.TtsSpeed
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -642,28 +643,87 @@ fun HomeGameView(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(54.dp)
+                            .size(50.dp)
                             .background(Color(0xFFA1DEDC), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "🔊",
-                            fontSize = 24.sp
+                            fontSize = 22.sp
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "PLAY WORD",
                         color = Color(0xFF33691E),
                         fontWeight = FontWeight.Black,
                         fontSize = 11.sp,
-                        letterSpacing = 1.sp
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = uiState.ttsSpeed.badge,
+                        color = Color(0xFFE65100),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Clear Pronunciation Speed Controls (Normal vs. Slow vs. Slowest)
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDE7).copy(alpha = 0.95f)),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 2.dp)
+                .border(1.5.dp, Color(0xFFFFB300), RoundedCornerShape(16.dp))
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "🔊 Speed:",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    color = Color(0xFF4E342E),
+                    modifier = Modifier.padding(end = 4.dp)
+                )
+
+                TtsSpeed.values().forEach { speed ->
+                    val isSelected = uiState.ttsSpeed == speed
+                    Surface(
+                        onClick = {
+                            viewModel.playCurrentWordSpeech(speed)
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) Color(0xFFFFD54F) else Color(0xFFFFFFFF),
+                        border = BorderStroke(
+                            width = if (isSelected) 2.dp else 1.dp,
+                            color = if (isSelected) Color(0xFFE65100) else Color(0xFFD7CCC8)
+                        ),
+                        modifier = Modifier
+                            .padding(horizontal = 2.dp)
+                            .testTag("tts_speed_${speed.name.lowercase()}")
+                    ) {
+                        Text(
+                            text = speed.badge,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                            color = if (isSelected) Color(0xFF3E2723) else Color(0xFF5D4037),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
     }
 }
 

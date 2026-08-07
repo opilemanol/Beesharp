@@ -8,6 +8,7 @@ import java.util.Locale
 class WordToSpeechHelper(context: Context) : TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var isInitialized = false
+    private var currentRate: Float = 1.0f
 
     init {
         tts = TextToSpeech(context.applicationContext, this)
@@ -23,6 +24,7 @@ class WordToSpeechHelper(context: Context) : TextToSpeech.OnInitListener {
             }
             if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
                 isInitialized = true
+                tts?.setSpeechRate(currentRate)
                 Log.d("WordToSpeechHelper", "TTS initialized successfully with locale: ${tts?.language}")
             } else {
                 Log.e("WordToSpeechHelper", "TTS language not supported or missing data")
@@ -32,10 +34,19 @@ class WordToSpeechHelper(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
-    fun speak(word: String) {
+    fun setSpeechRate(rate: Float) {
+        currentRate = rate
         if (isInitialized) {
+            tts?.setSpeechRate(rate)
+        }
+    }
+
+    fun speak(word: String, speedRate: Float = 1.0f) {
+        currentRate = speedRate
+        if (isInitialized) {
+            tts?.setSpeechRate(speedRate)
             tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, "SpellingBeeTTS")
-            Log.d("WordToSpeechHelper", "Speaking word: $word")
+            Log.d("WordToSpeechHelper", "Speaking word: '$word' at speed rate: $speedRate")
         } else {
             Log.w("WordToSpeechHelper", "TTS is not initialized yet. Skipping speech.")
         }
