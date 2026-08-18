@@ -58,6 +58,7 @@ import com.example.notification.NotificationHelper
 import com.example.ui.GameViewModel
 import com.example.ui.theme.MyApplicationTheme
 import androidx.compose.ui.viewinterop.AndroidView
+import android.widget.Toast
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
@@ -186,11 +187,13 @@ fun SpellingBeeGameScreen(
                                 adHelper.showRewardedAd(activity) { earned ->
                                     if (earned) {
                                         viewModel.onRewardAdWatchedSuccessfully()
+                                    } else {
+                                        Toast.makeText(activity, "Ad not completed. Reward not granted.", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             } else {
-                                // Fallback simulation if AdMob sandbox does not have loaded SDK
-                                viewModel.onRewardAdWatchedSuccessfully()
+                                adHelper.loadRewardedAd()
+                                Toast.makeText(activity, "Ads not Available, Try later", Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -1550,11 +1553,12 @@ fun BannerAdView(
     adUnitId: String,
     modifier: Modifier = Modifier
 ) {
+    // AdMob compliant container: Distinct boundary separating ad from interactive controls
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 50.dp)
-            .background(Color.White.copy(alpha = 0.85f))
+            .background(Color.White)
+            .border(width = 0.75.dp, color = Color(0xFFE0E0E0))
             .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
