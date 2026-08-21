@@ -14,6 +14,7 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 class AdHelper(private val context: Context) {
     private var rewardedAd: RewardedAd? = null
     private var interstitialAd: InterstitialAd? = null
+    private var rewardedAdRequestInProgress = false
 
     // Ad Unit IDs
     private val REWARDED_TEST_ID = "ca-app-pub-5927630860510493/3714422834"
@@ -45,20 +46,25 @@ class AdHelper(private val context: Context) {
     }
 
     fun loadRewardedAd() {
+        if (rewardedAd != null || rewardedAdRequestInProgress) return
+        rewardedAdRequestInProgress = true
         try {
             val adRequest = AdRequest.Builder().build()
             RewardedAd.load(context, REWARDED_TEST_ID, adRequest, object : RewardedAdLoadCallback() {
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    rewardedAdRequestInProgress = false
                     Log.e("AdHelper", "Rewarded Ad failed to load: ${loadAdError.message}")
                     rewardedAd = null
                 }
 
                 override fun onAdLoaded(ad: RewardedAd) {
+                    rewardedAdRequestInProgress = false
                     Log.d("AdHelper", "Rewarded Ad loaded successfully")
                     rewardedAd = ad
                 }
             })
         } catch (e: Throwable) {
+            rewardedAdRequestInProgress = false
             Log.e("AdHelper", "Exception during loadRewardedAd: ${e.message}")
             rewardedAd = null
         }
@@ -112,15 +118,15 @@ class AdHelper(private val context: Context) {
                     rewardedAd = null
                     loadRewardedAd()
                     activity.runOnUiThread {
-                        // In case of error (e.g. offline sandbox build), fallback to gracefully rewarding the user
-                        onAdDismissed(true)
+                        onAdDismissed(false)
                     }
                 }
             }
         } else {
-            // Safe simulation reward fallback in sandbox to ensure level progression doesn't block
             loadRewardedAd()
-            onAdDismissed(true)
+            activity.runOnUiThread {
+                onAdDismissed(false)
+            }
         }
     }
 

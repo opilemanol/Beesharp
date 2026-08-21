@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.ad.AdHelper
 import com.example.audio.SoundSynth
 import com.example.audio.WordToSpeechHelper
+import com.example.billing.BillingManager
 import com.example.data.AppDatabase
 import com.example.data.GameRepository
 import com.example.data.GameState
@@ -53,8 +54,7 @@ data class GameUiState(
     val currentTab: ActiveTab = ActiveTab.HOME,
     val messageText: String = "",
     val totalWordsSpelledCorrectly: Int = 0,
-    val showAdStatusText: String? = null,
-    val adLimitResetSeconds: Long = 0L
+    val showAdStatusText: String? = null
 )
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
@@ -62,6 +62,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: GameRepository
     private val ttsHelper: WordToSpeechHelper
     val adHelper: AdHelper
+    val billingManager: BillingManager
 
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
@@ -73,14 +74,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         repository = GameRepository(database.gameStateDao())
         ttsHelper = WordToSpeechHelper(application)
         adHelper = AdHelper(application)
-
-        // Start ad limit check loop updating every second
-        viewModelScope.launch {
-            while (true) {
-                updateAdLimitState()
-                delay(1000)
-            }
-        }
+        billingManager = BillingManager(application)
 
         // Load game state from Database on initialization
         viewModelScope.launch {
@@ -212,22 +206,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onSpellForMeClick(activity: android.app.Activity) {
         if (_uiState.value.gameStatus != GameStatus.PLAYING) return
-        if (_uiState.value.adLimitResetSeconds > 0) return
-        
-        val adHelper = adHelper
-        if (adHelper.isRewardedAdLoaded()) {
-            _uiState.update { it.copy(showAdStatusText = "Loading ad for Spell For Me...") }
-            adHelper.showRewardedAd(activity) { earned ->
-                _uiState.update { it.copy(showAdStatusText = null) }
-                if (earned) {
-                    recordRewardAdWatched()
-                    triggerTypewriterSpelling()
-                }
+
+        _uiState.update { it.copy(showAdStatusText = "Loading ad for Spell For Me...") }
+        adHelper.showRewardedAd(activity) { earned ->
+            _uiState.update {
+                it.copy(
+                    showAdStatusText = if (earned) null else "Rewarded ad is unavailable. Try again later."
+                )
             }
-        } else {
-            // Safe simulation reward fallback in sandbox
-            recordRewardAdWatched()
-            triggerTypewriterSpelling()
+            if (earned) {
+                triggerTypewriterSpelling()
+            }
         }
     }
 
@@ -384,102 +373,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun useFreeHint() {
+    fun showHintMeaning() {
+        val meaning = LevelData.getLevel(_uiState.value.currentLevelId).hintContext
         viewModelScope.launch {
-            val state = _uiState.value
-            if (state.freeHintsLeft <= 0) return@launch
-
-            val level = LevelData.getLevel(state.currentLevelId)
-            val targetWord = level.wordToSpell
-            val letters = state.inputLetters.toMutableList()
-            
-            val unrevealedIndices = letters.indices.filter { letters[it] == null }
-            if (unrevealedIndices.isNotEmpty()) {
-                val randomIndex = unrevealedIndices.random()
-                letters[randomIndex] = targetWord[randomIndex].uppercaseChar()
-            }
-
-            val firstNullIndex = letters.indexOfFirst { it == null }
-            val nextCursor = if (firstNullIndex != -1) firstNullIndex else letters.size
-
-            val nextFreeHints = state.freeHintsLeft - 1
-
-            _uiState.update {
-                it.copy(
-                    freeHintsLeft = nextFreeHints,
-                    isHintUnlockedForLevel = true,
-                    inputLetters = letters,
-                    cursorIndex = nextCursor
-                )
-            }
-
-            val savedState = repository.getGameState()
-            repository.saveGameState(
-                savedState.copy(
-                    isHintUnlockedForLevel = true,
-                    freeHintsLeft = nextFreeHints
-                )
-            )
-        }
-    }
-
-    fun onRewardAdWatchedSuccessfully() {
-        if (_uiState.value.adLimitResetSeconds > 0) return
-        recordRewardAdWatched()
-        viewModelScope.launch {
-            val restoredCount = 3
-            
-            _uiState.update {
-                it.copy(
-                    freeHintsLeft = restoredCount,
-                    messageText = "Watched ad: 3 free hints restored!"
-                )
-            }
-
-            val savedState = repository.getGameState()
-            repository.saveGameState(
-                savedState.copy(
-                    freeHintsLeft = restoredCount
-                )
-            )
-
-            // Auto clear message text after 3 seconds
+            _uiState.update { it.copy(messageText = "Meaning: $meaning") }
             delay(3000)
             _uiState.update {
-                if (it.messageText == "Watched ad: 3 free hints restored!") {
+                if (it.messageText == "Meaning: $meaning") {
                     it.copy(messageText = "")
                 } else {
                     it
                 }
             }
         }
-    }
-
-    private fun getAdWatchTimestamps(): List<Long> {
-        val prefs = getApplication<Application>().getSharedPreferences("ad_limits", android.content.Context.MODE_PRIVATE)
-        val raw = prefs.getString("watch_timestamps", "") ?: ""
-        if (raw.isEmpty()) return emptyList()
-        return raw.split(",").mapNotNull { it.toLongOrNull() }
-    }
-
-    private fun saveAdWatchTimestamps(timestamps: List<Long>) {
-        val prefs = getApplication<Application>().getSharedPreferences("ad_limits", android.content.Context.MODE_PRIVATE)
-        val raw = timestamps.joinToString(",")
-        prefs.edit().putString("watch_timestamps", raw).apply()
-    }
-
-    private fun recordRewardAdWatched() {
-        val now = System.currentTimeMillis()
-        val twelveHoursAgo = now - (12 * 60 * 60 * 1000L)
-        val current = getAdWatchTimestamps().filter { it >= twelveHoursAgo }.toMutableList()
-        current.add(now)
-        saveAdWatchTimestamps(current)
-        updateAdLimitState()
-    }
-
-    private fun updateAdLimitState() {
-        // Frequency limits managed directly via AdMob console
-        _uiState.update { it.copy(adLimitResetSeconds = 0L) }
     }
 
     fun selectTab(tab: ActiveTab) {
@@ -524,7 +430,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         
         // Spec requirements: Show AdMob Interstitial ad immediately after the player completes every third level
         val completedLevel = _uiState.value.currentLevelId
-        if (completedLevel % 3 == 0) {
+        if (completedLevel % 3 == 0 && !billingManager.adsRemoved.value) {
             _uiState.update { it.copy(showAdStatusText = "Loading inter-level sponsored ad...") }
             adHelper.showInterstitialAd(activity) {
                 _uiState.update { it.copy(showAdStatusText = null) }
@@ -539,5 +445,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         timerJob?.cancel()
         ttsHelper.shutdown()
+        billingManager.close()
     }
 }

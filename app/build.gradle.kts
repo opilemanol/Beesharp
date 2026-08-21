@@ -14,8 +14,8 @@ defaultConfig {
     applicationId = "com.aistudio.beesharp.wbyqkz"
    minSdk = 24
 targetSdk = 36
-    versionCode = 5
-    versionName = "5.0"
+    versionCode = 8
+    versionName = "8.0"
 testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 }
 
@@ -32,9 +32,9 @@ signingConfigs {
     }
     create("debugConfig") {
         storeFile = file("${rootDir}/debug.keystore")
-        storePassword = "android"
+        storePassword = "android123"
         keyAlias = "androiddebugkey"
-        keyPassword = "android"
+        keyPassword = "android123"
     }
 }
 
@@ -91,6 +91,7 @@ implementation(libs.androidx.lifecycle.runtime.ktx)
 implementation(libs.androidx.lifecycle.viewmodel.compose)
 implementation(libs.androidx.navigation.compose)
 implementation(libs.play.services.ads)
+implementation(libs.billing)
 implementation("androidx.work:work-runtime-ktx:2.9.1")
 implementation(libs.androidx.room.ktx)
 implementation(libs.androidx.room.runtime)

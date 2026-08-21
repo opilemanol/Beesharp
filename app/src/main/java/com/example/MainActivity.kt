@@ -75,6 +75,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        viewModel.billingManager.refreshPurchases()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -118,6 +123,8 @@ fun SpellingBeeGameScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val adsRemoved by viewModel.billingManager.adsRemoved.collectAsState()
+    val billingStatus by viewModel.billingManager.status.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -146,6 +153,12 @@ fun SpellingBeeGameScreen(
             TabNavigationBar(
                 activeTab = uiState.currentTab,
                 onTabSelected = { viewModel.selectTab(it) }
+            )
+
+            AdsRemovalBar(
+                adsRemoved = adsRemoved,
+                status = billingStatus,
+                onPurchase = { viewModel.billingManager.launchRemoveAdsPurchase(activity) }
             )
 
             // 3. Main Yellow Banner: Centered Orange Text with Aqua/Cyan borders
@@ -178,21 +191,7 @@ fun SpellingBeeGameScreen(
                 HintButtonRow(
                     uiState = uiState,
                     onHintClick = {
-                        if (uiState.freeHintsLeft > 0) {
-                            viewModel.useFreeHint()
-                        } else {
-                            val adHelper = viewModel.adHelper
-                            if (adHelper.isRewardedAdLoaded()) {
-                                adHelper.showRewardedAd(activity) { earned ->
-                                    if (earned) {
-                                        viewModel.onRewardAdWatchedSuccessfully()
-                                    }
-                                }
-                            } else {
-                                // Fallback simulation if AdMob sandbox does not have loaded SDK
-                                viewModel.onRewardAdWatchedSuccessfully()
-                            }
-                        }
+                        viewModel.showHintMeaning()
                     }
                 )
 
@@ -204,7 +203,6 @@ fun SpellingBeeGameScreen(
 
                 // 7. System CTA Row (CLEAR, SPELL FOR ME, SUBMIT)
                 MainCtaButtonsRow(
-                    adLimitResetSeconds = uiState.adLimitResetSeconds,
                     onClear = { viewModel.onClearPress() },
                     onSpellForMe = { viewModel.onSpellForMeClick(activity) },
                     onSubmit = { viewModel.onSubmitPress() }
@@ -212,7 +210,9 @@ fun SpellingBeeGameScreen(
             }
 
             // 8. Live Banner Ad View
-            BannerAdView(adUnitId = viewModel.adHelper.BANNER_AD_ID)
+            if (!adsRemoved) {
+                BannerAdView(adUnitId = viewModel.adHelper.BANNER_AD_ID)
+            }
         }
 
         // Action Overlays
@@ -364,6 +364,50 @@ fun TabNavigationBar(
                     fontWeight = FontWeight.Black,
                     fontSize = 12.sp,
                     letterSpacing = 1.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AdsRemovalBar(
+    adsRemoved: Boolean,
+    status: String,
+    onPurchase: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFFFFDE7))
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(horizontalAlignment = Alignment.End) {
+            Button(
+                onClick = onPurchase,
+                enabled = !adsRemoved,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (adsRemoved) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                    disabledContainerColor = Color(0xFF4CAF50)
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text(
+                    text = if (adsRemoved) "ADS REMOVED" else "REMOVE ADS",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp
+                )
+            }
+            if (!adsRemoved) {
+                Text(
+                    text = status,
+                    color = Color(0xFF5D4037),
+                    fontSize = 8.sp,
+                    maxLines = 1
                 )
             }
         }
@@ -773,17 +817,6 @@ fun WordInputBoxesSection(
     }
 }
 
-fun formatAdResetTime(seconds: Long): String {
-    val hours = seconds / 3600
-    val minutes = (seconds % 3600) / 60
-    val secs = seconds % 60
-    return when {
-        hours > 0 -> "Resets in ${hours}h ${minutes}m"
-        minutes > 0 -> "Resets in ${minutes}m ${secs}s"
-        else -> "Resets in ${secs}s"
-    }
-}
-
 @Composable
 fun HintButtonRow(
     uiState: GameUiState,
@@ -797,23 +830,10 @@ fun HintButtonRow(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val level = LevelData.getLevel(uiState.currentLevelId)
-        val hasFreeHints = uiState.freeHintsLeft > 0
-        val isAdLimitReached = uiState.adLimitResetSeconds > 0
-
         Button(
-            onClick = {
-                if (!hasFreeHints && isAdLimitReached) {
-                    // Ad limit is reached and we need to watch ad - do nothing
-                } else {
-                    onHintClick()
-                }
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (!hasFreeHints && isAdLimitReached) Color.Gray else (if (hasFreeHints) Color(0xFFFFF7B3) else Color(0xFFFFCC80)),
-                contentColor = if (!hasFreeHints && isAdLimitReached) Color.White else Color(0xFF4E342E)
-            ),
-            border = BorderStroke(2.dp, if (!hasFreeHints && isAdLimitReached) Color.Gray else (if (hasFreeHints) Color(0xFF8D6E63).copy(alpha = 0.5f) else Color(0xFFE65100))),
+            onClick = onHintClick,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFF7B3)),
+            border = BorderStroke(2.dp, Color(0xFF8D6E63).copy(alpha = 0.5f)),
             shape = RoundedCornerShape(24.dp),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
             modifier = Modifier
@@ -824,85 +844,15 @@ fun HintButtonRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (hasFreeHints) {
+                Text(text = "💡", fontSize = 12.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "💡",
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        text = "HINT",
+                        text = "SHOW MEANING",
                         color = Color(0xFF4E342E),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 10.sp
                     )
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFF8D6E63), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
-                    ) {
-                        Text(
-                            text = uiState.freeHintsLeft.toString(),
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                } else {
-                    Text(
-                        text = if (isAdLimitReached) "🔒" else "📺",
-                        fontSize = 12.sp
-                    )
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        if (isAdLimitReached) {
-                            Text(
-                                text = "LIMIT REACHED",
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp
-                            )
-                            Text(
-                                text = formatAdResetTime(uiState.adLimitResetSeconds),
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 7.sp
-                            )
-                        } else {
-                            Text(
-                                text = "GET 3 HINTS",
-                                color = Color(0xFF5D4037),
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp
-                            )
-                            Text(
-                                text = "Watch Ad",
-                                color = Color(0xFFE65100),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 7.sp
-                            )
-                        }
-                    }
                 }
-            }
-        }
-
-        // Display the hint dialog summary description if hint is unlocked
-        if (uiState.isHintUnlockedForLevel) {
-            Spacer(modifier = Modifier.width(12.dp))
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDE7)),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFF8D6E63))
-            ) {
-                Text(
-                    text = level.hintContext,
-                    color = Color(0xFF4E342E),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
             }
         }
     }
@@ -990,12 +940,10 @@ fun CustomQwertyKeyboard(
 
 @Composable
 fun MainCtaButtonsRow(
-    adLimitResetSeconds: Long,
     onClear: () -> Unit,
     onSpellForMe: () -> Unit,
     onSubmit: () -> Unit
 ) {
-    val isAdLimitReached = adLimitResetSeconds > 0
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1023,8 +971,8 @@ fun MainCtaButtonsRow(
 
         // SPELL FOR ME button with Watch Ad subscript
         Button(
-            onClick = { if (!isAdLimitReached) onSpellForMe() },
-            colors = ButtonDefaults.buttonColors(containerColor = if (isAdLimitReached) Color.Gray else Color(0xFFFF9800)), // Grey if limited
+            onClick = onSpellForMe,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
             shape = RoundedCornerShape(12.dp),
             contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp),
             modifier = Modifier
@@ -1036,37 +984,20 @@ fun MainCtaButtonsRow(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                if (isAdLimitReached) {
-                    Text(
-                        text = "LIMIT REACHED",
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = "🔒 " + formatAdResetTime(adLimitResetSeconds),
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 8.sp,
-                        maxLines = 1
-                    )
-                } else {
-                    Text(
-                        text = "SPELL FOR ME",
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = "📺 Watch Ad",
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 8.sp,
-                        maxLines = 1
-                    )
-                }
+                Text(
+                    text = "SPELL FOR ME",
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 11.sp,
+                    maxLines = 1
+                )
+                Text(
+                    text = "📺 Watch Ad",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 8.sp,
+                    maxLines = 1
+                )
             }
         }
 
